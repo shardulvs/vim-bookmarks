@@ -194,6 +194,10 @@ function! BookmarkShowAll()
       else
         cgetexpr bm#location_list()
         belowright copen
+        " allow `dd` to delete the bookmark from the quickfix menu itself
+        nnoremap <buffer> dd :call <SID>DeleteDD()<CR>
+        " allow to close the quickfix menu using Esc
+        nnoremap <buffer> <Esc> :q<CR>
       endif
       augroup BM_AutoCloseCommand
         autocmd!
@@ -205,6 +209,31 @@ function! BookmarkShowAll()
 endfunction
 command! ShowAllBookmarks call CallDeprecatedCommand('BookmarkShowAll')
 command! BookmarkShowAll call BookmarkShowAll()
+
+"───────────────────────────────────────────────────────────────────
+" dd in the quickfix window: cc {nr} | cclose → toggle → reopen
+"───────────────────────────────────────────────────────────────────
+function! s:DeleteDD() abort
+  " 1) Ensure we’re in the marks (quickfix) window
+  if &buftype !=# 'quickfix'
+    echoerr "dd: not in the bookmark list window"
+    return
+  endif
+
+  " 2) Get the index = cursor’s line in QF
+  let idx = line('.')
+  let qfl = getqflist()
+  if idx < 1 || idx > len(qfl)
+    echoerr "dd: no bookmark on this line"
+    return
+  endif
+
+  " 3) Jump to that entry exactly like pressing <CR> in QF
+  exec 'cc ' . idx . ' | cclose'
+  call BookmarkToggle()
+  execute 'b#'
+  call BookmarkShowAll()
+endfunction
 
 function! BookmarkSave(target_file, silent)
   call s:refresh_line_numbers()
